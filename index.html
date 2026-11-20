@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>TP control con IOT Guido y Carrizo.</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1220;
+      --panel: rgba(18, 29, 48, .88);
+      --panel-2: rgba(24, 38, 61, .86);
+      --line: rgba(148, 163, 184, .18);
+      --text: #edf4ff;
+      --muted: #91a2ba;
+      --cyan: #48d6e8;
+      --blue: #6488ff;
+      --green: #36d399;
+      --red: #fb7185;
+      --shadow: 0 20px 55px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(72,214,232,.13), transparent 29rem),
+        radial-gradient(circle at 92% 14%, rgba(100,136,255,.16), transparent 30rem),
+        linear-gradient(145deg, #08101d, #101b2d 58%, #0a1220);
+    }
+    .shell { width: min(1100px, calc(100% - 36px)); margin: 0 auto; padding: 42px 0 34px; }
+    .topline { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:28px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand-mark {
+      width:44px; height:44px; display:grid; place-items:center; border-radius:14px;
+      background:linear-gradient(135deg, rgba(72,214,232,.2), rgba(100,136,255,.24));
+      border:1px solid rgba(112,202,255,.25); color:var(--cyan); font-size:21px; font-weight:800;
+      box-shadow:0 8px 24px rgba(72,214,232,.08);
+    }
+    .eyebrow { color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
+    h1 { margin:4px 0 0; font-size:clamp(25px, 4vw, 38px); line-height:1.12; letter-spacing:-.04em; }
+    .subtitle { color:var(--muted); margin:10px 0 0; font-size:14px; }
+    .connection-pill { display:flex; align-items:center; gap:9px; padding:10px 14px; border:1px solid var(--line); border-radius:999px; background:rgba(12,22,38,.72); color:var(--muted); font-size:13px; white-space:nowrap; }
+    .dot { width:8px; height:8px; border-radius:50%; background:#64748b; box-shadow:0 0 0 4px rgba(100,116,139,.12); }
+    .dot.online { background:var(--green); box-shadow:0 0 0 4px rgba(54,211,153,.12); }
+    .dot.waiting { background:#fbbf24; box-shadow:0 0 0 4px rgba(251,191,36,.12); }
+    .layout { display:grid; grid-template-columns:minmax(0, 1.35fr) minmax(290px, .85fr); gap:18px; align-items:stretch; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:22px; box-shadow:var(--shadow); backdrop-filter: blur(16px); }
+    .temperature-card { padding:27px; position:relative; overflow:hidden; min-height:330px; }
+    .temperature-card::after { content:""; position:absolute; width:250px; height:250px; border-radius:50%; right:-90px; top:-110px; background:rgba(72,214,232,.08); filter:blur(2px); pointer-events:none; }
+    .section-top { display:flex; align-items:center; justify-content:space-between; gap:12px; position:relative; z-index:1; }
+    .section-label { color:var(--muted); text-transform:uppercase; letter-spacing:.15em; font-size:11px; font-weight:800; }
+    .icon-box { width:40px; height:40px; display:grid; place-items:center; border-radius:13px; background:rgba(72,214,232,.1); color:var(--cyan); font-size:20px; }
+    .temp-label { margin:29px 0 3px; font-size:19px; font-weight:650; color:#dcecff; }
+    .temp-reading { display:flex; align-items:flex-start; gap:7px; min-height:100px; }
+    .temp-value { font-size:clamp(62px, 10vw, 94px); line-height:1; letter-spacing:-.075em; font-weight:750; color:#f5fbff; }
+    .temp-unit { font-size:26px; color:var(--cyan); margin-top:10px; font-weight:600; }
+    .temp-foot { color:var(--muted); font-size:13px; margin-top:8px; }
+    .temp-meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+    .meta-chip { padding:8px 11px; border-radius:10px; background:rgba(148,163,184,.08); border:1px solid rgba(148,163,184,.12); color:#b7c6da; font-size:12px; }
+    .control-card { padding:25px; display:flex; flex-direction:column; }
+    .control-card h2, .settings h2 { margin:0; font-size:18px; letter-spacing:-.02em; }
+    .muted { color:var(--muted); font-size:13px; line-height:1.55; }
+    .control-buttons { display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-top:25px; }
+    button { font:inherit; cursor:pointer; border:0; transition:transform .16s ease, filter .16s ease, opacity .16s ease; }
+    button:hover:not(:disabled) { transform:translateY(-2px); filter:brightness(1.08); }
+    button:active:not(:disabled) { transform:translateY(0); }
+    button:disabled { cursor:not-allowed; opacity:.38; }
+    .action-btn { min-height:112px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; border-radius:16px; color:#06111d; font-weight:800; font-size:15px; }
+    .action-btn .arrow { font-size:24px; line-height:1; }
+    .open { background:linear-gradient(135deg, #53e5b3, #28c997); box-shadow:0 10px 25px rgba(40,201,151,.16); }
+    .close { background:linear-gradient(135deg, #ff9aaa, #fb7185); box-shadow:0 10px 25px rgba(251,113,133,.14); }
+    .command-note { margin-top:auto; padding-top:20px; }
+    .command-state { border:1px solid var(--line); border-radius:13px; padding:12px 13px; background:rgba(7,15,27,.34); color:var(--muted); font-size:12px; line-height:1.5; }
+    .settings { margin-top:18px; padding:23px 25px 25px; }
+    .settings-header { display:flex; justify-content:space-between; align-items:center; gap:15px; margin-bottom:17px; }
+    .settings-tag { font-size:11px; color:var(--cyan); border:1px solid rgba(72,214,232,.24); border-radius:999px; padding:6px 9px; background:rgba(72,214,232,.07); }
+    .settings-grid { display:grid; grid-template-columns:1.2fr .7fr 1.3fr 1.3fr; gap:12px; }
+    .field { min-width:0; }
+    label { display:block; margin:0 0 7px; font-size:11px; color:#a9bad0; font-weight:750; letter-spacing:.04em; }
+    input { width:100%; min-width:0; height:43px; padding:0 12px; border:1px solid rgba(148,163,184,.22); border-radius:10px; background:rgba(5,13,24,.55); color:var(--text); outline:none; font:inherit; font-size:13px; }
+    input:focus { border-color:rgba(72,214,232,.65); box-shadow:0 0 0 3px rgba(72,214,232,.09); }
+    .settings-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:16px; }
+    .connect-btn { padding:11px 17px; border-radius:10px; background:linear-gradient(135deg, #62d9ee, #6e91ff); color:#07111e; font-weight:800; font-size:13px; }
+    .connection-info { color:var(--muted); font-size:12px; line-height:1.5; }
+    .notice { margin-top:17px; padding:12px 14px; border-radius:12px; border:1px solid rgba(251,191,36,.19); background:rgba(251,191,36,.055); color:#d8c99d; font-size:12px; line-height:1.55; }
+    .footer { display:flex; justify-content:space-between; gap:15px; margin-top:18px; color:#6f819b; font-size:11px; line-height:1.5; }
+    .toast { position:fixed; right:20px; bottom:20px; max-width:min(390px, calc(100% - 40px)); padding:13px 16px; border:1px solid var(--line); border-radius:13px; background:#17263d; color:var(--text); box-shadow:var(--shadow); font-size:13px; opacity:0; transform:translateY(12px); pointer-events:none; transition:.22s ease; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    @media (max-width:850px) { .layout { grid-template-columns:1fr; } .temperature-card { min-height:290px; } .settings-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:560px) { .shell { width:min(100% - 24px, 500px); padding-top:25px; } .topline { align-items:flex-start; flex-direction:column; } .connection-pill { align-self:flex-start; } .temperature-card, .control-card, .settings { padding:20px; border-radius:18px; } .settings-grid { grid-template-columns:1fr; } .footer { flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topline">
+      <div class="brand">
+        <div class="brand-mark">IoT</div>
+        <div>
+          <div class="eyebrow">Panel de monitoreo y control</div>
+          <h1>TP control con IOT Guido y Carrizo.</h1>
+          <p class="subtitle">Lectura de temperatura y control de un servo mediante MQTT.</p>
+        </div>
+      </div>
+      <div class="connection-pill" aria-live="polite">
+        <span class="dot" id="statusDot"></span>
+        <span id="connectionText">Desconectado</span>
+      </div>
+    </header>
+
+    <section class="layout" aria-label="Panel principal">
+      <article class="card temperature-card">
+        <div class="section-top">
+          <div class="section-label">Lectura del sensor</div>
+          <div class="icon-box" aria-hidden="true">⌁</div>
+        </div>
+        <div class="temp-label">Temperatura</div>
+        <div class="temp-reading">
+          <div class="temp-value" id="temperatureValue">--</div>
+          <div class="temp-unit">°C</div>
+        </div>
+        <div class="temp-foot" id="temperatureMessage">Esperando datos del tópico MQTT…</div>
+        <div class="temp-meta">
+          <span class="meta-chip">Tópico: <strong id="tempTopicPreview">etusiemens/apellido1/temperatura</strong></span>
+          <span class="meta-chip">Última actualización: <strong id="lastUpdate">—</strong></span>
+        </div>
+      </article>
+
+      <article class="card control-card">
+        <div>
+          <div class="section-top">
+            <h2>Control del servo</h2>
+            <div class="icon-box" aria-hidden="true">↔</div>
+          </div>
+          <p class="muted">Usá los botones para enviar un comando al tópico configurado.</p>
+          <div class="control-buttons">
+            <button class="action-btn open" id="openButton" disabled>
+              <span class="arrow">↗</span><span>Abrir</span><small>Enviar 1</small>
+            </button>
+            <button class="action-btn close" id="closeButton" disabled>
+              <span class="arrow">↙</span><span>Cerrar</span><small>Enviar 0</small>
+            </button>
+          </div>
+        </div>
+        <div class="command-note">
+          <div class="command-state" id="commandState">Conectá el dashboard al broker para habilitar los controles.</div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card settings">
+      <div class="settings-header">
+        <h2>Configuración MQTT</h2>
+        <span class="settings-tag">EDITABLE</span>
+      </div>
+      <div class="settings-grid">
+        <div class="field">
+          <label for="brokerHost">DIRECCIÓN DEL BROKER</label>
+          <input id="brokerHost" type="text" value="test.mosquitto.org" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="wsPort">PUERTO WEBSOCKET</label>
+          <input id="wsPort" type="number" value="8081" min="1" max="65535" />
+        </div>
+        <div class="field">
+          <label for="temperatureTopic">TÓPICO DE TEMPERATURA</label>
+          <input id="temperatureTopic" type="text" value="etusiemens/apellido1/temperatura" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="servoTopic">TÓPICO DEL SERVO</label>
+          <input id="servoTopic" type="text" value="etusiemens/apellido2/servo" spellcheck="false" />
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="connect-btn" id="connectButton">Conectar al broker</button>
+        <span class="connection-info">Broker MQTT: <strong>test.mosquitto.org</strong> · Puerto TCP para dispositivos: <strong>1883</strong></span>
+      </div>
+      <div class="notice">
+        <strong>Importante:</strong> una página web no puede abrir directamente una conexión MQTT TCP al puerto 1883. Por eso, este dashboard usa MQTT sobre WebSocket seguro (WSS) en el puerto 8081. El ESP32 u otro dispositivo puede conectarse al mismo broker usando MQTT TCP por el puerto 1883. Ambos deben publicar y suscribirse a los mismos tópicos.
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>TP de Internet de las Cosas · Guido y Carrizo</span>
+      <span>Para cambiar los tópicos, editá los campos y volvé a conectar.</span>
+    </footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const statusDot = $('statusDot');
+      const connectionText = $('connectionText');
+      const connectButton = $('connectButton');
+      const openButton = $('openButton');
+      const closeButton = $('closeButton');
+      const commandState = $('commandState');
+      const toast = $('toast');
+      let client = null;
+      let connected = false;
+      let toastTimer = null;
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+      }
+
+      function setConnectionState(state, message) {
+        statusDot.className = 'dot' + (state === 'online' ? ' online' : state === 'waiting' ? ' waiting' : '');
+        connectionText.textContent = message;
+      }
+
+      function updateControls() {
+        openButton.disabled = !connected;
+        closeButton.disabled = !connected;
+        connectButton.textContent = connected ? 'Desconectar' : 'Conectar al broker';
+      }
+
+      function getSettings() {
+        return {
+          host: $('brokerHost').value.trim(),
+          port: Number($('wsPort').value),
+          temperatureTopic: $('temperatureTopic').value.trim(),
+          servoTopic: $('servoTopic').value.trim()
+        };
+      }
+
+      function validSettings(s) {
+        if (!s.host || !s.temperatureTopic || !s.servoTopic || !Number.isInteger(s.port) || s.port < 1 || s.port > 65535) {
+          showToast('Revisá la dirección, el puerto y los dos tópicos.');
+          return false;
+        }
+        return true;
+      }
+
+      function connect() {
+        if (typeof mqtt === 'undefined') {
+          showToast('No se pudo cargar la biblioteca MQTT. Revisá tu conexión a Internet.');
+          return;
+        }
+        const settings = getSettings();
+        if (!validSettings(settings)) return;
+
+        if (client) {
+          try { client.end(true); } catch (_) {}
+          client = null;
+        }
+        connected = false;
+        updateControls();
+        setConnectionState('waiting', 'Conectando…');
+        $('temperatureValue').textContent = '--';
+        $('temperatureMessage').textContent = 'Esperando datos del tópico MQTT…';
+        $('tempTopicPreview').textContent = settings.temperatureTopic;
+        $('lastUpdate').textContent = '—';
+        commandState.textContent = 'Intentando conectar con ' + settings.host + ':' + settings.port + '…';
+
+        const scheme = (location.protocol === 'https:' || settings.port === 8081) ? 'wss' : 'ws';
+        const brokerUrl = `${scheme}://${settings.host}:${settings.port}`;
+        const clientId = 'web_guido_carrizo_' + Math.random().toString(16).slice(2, 10);
+
+        client = mqtt.connect(brokerUrl, {
+          clientId,
+          clean: true,
+          connectTimeout: 10000,
+          reconnectPeriod: 3000,
+          keepalive: 30,
+          protocolVersion: 4
+        });
+
+        client.on('connect', () => {
+          connected = true;
+          updateControls();
+          setConnectionState('online', 'Conectado');
+          commandState.textContent = 'Conectado. Los comandos se enviarán a: ' + settings.servoTopic;
+          client.subscribe(settings.temperatureTopic, { qos: 0 }, (err) => {
+            if (err) {
+              showToast('Conectado, pero no se pudo suscribir al tópico de temperatura.');
+            } else {
+              showToast('Conexión correcta. Esperando temperatura…');
+            }
+          });
+        });
+
+        client.on('reconnect', () => {
+          connected = false;
+          updateControls();
+          setConnectionState('waiting', 'Reconectando…');
+        });
+
+        client.on('close', () => {
+          connected = false;
+          updateControls();
+          setConnectionState('offline', 'Desconectado');
+        });
+
+        client.on('offline', () => {
+          connected = false;
+          updateControls();
+          setConnectionState('waiting', 'Sin conexión');
+        });
+
+        client.on('error', (err) => {
+          console.error('MQTT:', err);
+          commandState.textContent = 'No se pudo establecer la conexión. Revisá el broker y el puerto WebSocket.';
+          setConnectionState('offline', 'Error de conexión');
+        });
+
+        client.on('message', (topic, payload) => {
+          if (topic !== settings.temperatureTopic) return;
+          const raw = payload.toString().trim();
+          const numeric = Number(raw.replace(',', '.'));
+          if (raw !== '' && Number.isFinite(numeric)) {
+            $('temperatureValue').textContent = numeric.toLocaleString('es-AR', { maximumFractionDigits: 1 });
+            $('temperatureMessage').textContent = 'Último valor recibido correctamente.';
+          } else {
+            $('temperatureValue').textContent = raw.slice(0, 14) || '--';
+            $('temperatureMessage').textContent = 'El mensaje recibido no es un valor numérico.';
+          }
+          $('lastUpdate').textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        });
+      }
+
+      function disconnect() {
+        if (client) {
+          try { client.end(true); } catch (_) {}
+          client = null;
+        }
+        connected = false;
+        updateControls();
+        setConnectionState('offline', 'Desconectado');
+        commandState.textContent = 'Dashboard desconectado del broker.';
+        showToast('Se cerró la conexión MQTT.');
+      }
+
+      function publishCommand(value, label) {
+        if (!client || !connected) {
+          showToast('Primero conectá el dashboard al broker.');
+          return;
+        }
+        const topic = $('servoTopic').value.trim();
+        if (!topic) {
+          showToast('Ingresá el tópico del servo.');
+          return;
+        }
+        client.publish(topic, String(value), { qos: 0, retain: false }, (err) => {
+          if (err) {
+            commandState.textContent = 'No se pudo enviar el comando: ' + label + '.';
+            showToast('Error al publicar el comando.');
+          } else {
+            commandState.textContent = 'Último comando enviado: ' + label + ' (' + value + ') · Tópico: ' + topic;
+            showToast('Comando enviado: ' + label + ' (' + value + ').');
+          }
+        });
+      }
+
+      connectButton.addEventListener('click', () => {
+        if (connected || (client && client.connected)) disconnect();
+        else connect();
+      });
+      openButton.addEventListener('click', () => publishCommand(1, 'Abrir'));
+      closeButton.addEventListener('click', () => publishCommand(0, 'Cerrar'));
+      $('temperatureTopic').addEventListener('input', () => {
+        $('tempTopicPreview').textContent = $('temperatureTopic').value.trim() || '—';
+      });
+      window.addEventListener('beforeunload', () => {
+        if (client) client.end(true);
+      });
+      updateControls();
+    })();
+  </script>
+</body>
+</html>
